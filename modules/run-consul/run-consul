@@ -328,6 +328,8 @@ function run {
   start_consul
 
   if [[ "$enable_acl" == "true" ]]; then
+    local -r storage_type = "ssm"
+  
     local -r asg_name=$(aws_wrapper_get_asg_name $MAX_RETRIES $SLEEP_BETWEEN_RETRIES_SEC)
     local -r aws_region=$(aws_get_instance_region)
     local -r instance_id=$(aws_get_instance_id)
@@ -339,16 +341,34 @@ function run {
     log_info "Calculated rally point instance is $rally_point_hostname."
     local -r local_hostname=$(aws_wrapper_get_hostname)
     log_info "Local hostname is $local_hostname"
+    
+    local storage_type_matched = false
+    case "$storage_type" in 
+        'ssm' | 'SSM')
+        storage_type_matched = true
+        source ${SCRIPT_DIR}/consul-bootstrap-ssm.sh;;
 
+        'vault' | 'VAULT')
+        storage_type_matched = true
+        source ${SCRIPT_DIR}/consul-bootstrap-vault.sh;;
+        
+        *)
+        if [$storage_type_matched = false]; then
+            log_error "ACL storage type '${storage_type}' is not supported."
+            exit 1
+        fi;;
+        
+    esac
+    
     if [[ "$rally_point_hostname" == "$local_hostname" ]]; then
       log_info "Checking if bootstrap token already exists"
-      local -r existing_token=$(read_acl_token $cluster_tag_value "bootstrap" $aws_region "ssm" 1 0 "true")
+      local -r existing_token=$(read_acl_token $cluster_tag_value "bootstrap" $aws_region "1 0 "true")
 
       if [[ "$existing_token" == "" ]] && [ "${server}" == "true" ]; then
         log_info "Generating bootstrap ACL token"
         bootstrap_token=$(generate_bootstrap_acl_token $MAX_RETRIES $SLEEP_BETWEEN_RETRIES_SEC)
-        log_info "Persisting bootstrap token to SSM parameter"
-        write_acl_token $bootstrap_token $cluster_tag_value "bootstrap" $aws_region "ssm"
+        log_info "Persisting bootstrap token"
+        write_acl_token $bootstrap_token $cluster_tag_value "bootstrap" $aws_region
       else
         log_info "Bootstrap token already exists, skipping"
       fi      
@@ -358,7 +378,7 @@ function run {
     # then we need to read it.
     if [[ -z "$bootstrap_token" ]]; then
       log_info "Acquiring bootstrap token"
-      bootstrap_token=$(read_acl_token $cluster_tag_value "bootstrap" $aws_region "ssm")
+      bootstrap_token=$(read_acl_token $cluster_tag_value "bootstrap" $aws_region)
     fi
 
     # Generate agent policy dynamically and write it
