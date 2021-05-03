@@ -482,6 +482,17 @@ function write_acl_policy {
   consul acl policy create -name $policy_name -rules "$policy_hcl" $token_arg
 }
 
+function generate_agent_policy_and_token {
+  local -r node_name="$1"
+  local -r token="$2"
+
+  local -r agent_policy=$(generate_node_acl_policy $node_name)
+  write_acl_policy "$node_name" "$agent_policy" "$token"
+  
+  local -r generated_token=$(generate_token "$node_name" "$node_name agent policy" $token)
+  echo $generated_token
+}
+
 function generate_token {
   local -r policy_name="$1"
   local -r description="$2"
