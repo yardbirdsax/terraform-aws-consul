@@ -363,11 +363,7 @@ function run {
 
     # Generate agent policy dynamically and write it
     log_info "Creating agent policy and token"
-    local -r agent_policy=$(generate_node_acl_policy $local_hostname)
-    write_acl_policy "$instance_id" "$agent_policy" "$bootstrap_token"
-
-    # Generate agent token and persist it
-    local -r agent_token=$(generate_token "$instance_id" "$instance_id agent policy" $bootstrap_token)
+    local -r agent_token=$(generate_agent_policy_and_token "$instance_id" $bootstrap_token)
     set_agent_token "$agent_token" "$bootstrap_token"
 
   fi
