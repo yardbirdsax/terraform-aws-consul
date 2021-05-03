@@ -1,0 +1,9 @@
+function read_acl_token() {
+   log_error "Vault token storage needs to be done!"
+   exit 1
+}
+
+function write_acl_token() {
+   log_error "Vault token storage needs to be done!"
+   exit 1
+}
