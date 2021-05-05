@@ -1,0 +1,39 @@
+function get_acl_token_parameter_name {
+  echo "ims_kv/consul/$cluster_name/$token_name"
+}
+
+function read_acl_token {
+  local -r cluster_name="$1"
+  local -r token_name="${2:-bootstrap}"
+  local -r aws_region="$3"
+  local -r max_retries="${4:-50}"
+  local -r sleep_between_retries="${5:-4}"
+  local -r ignore_error="${6:-false}"
+
+  local parameter_name=$(get_acl_token_parameter_name $cluster_name $token_name)
+  local token
+
+  for (( i=0; i<"$max_retries"; i++ )); do
+    token=$(vault kv get $parameter_name -format json -field token)
+    if [[ $? -eq 0 ]] && [[ -n $token ]]; then
+      echo $token
+      return
+    else
+      log_info "Vault KV path $parameter_name does not yet exist."
+      sleep "$sleep_between_retries"
+    fi
+  done
+  log_error "Parameter $parameter_name still does not exist after exceeding maximum number of retries."
+  if [[ "$ignore_error" == "false" ]]; then
+    exit 1
+  fi
+}
+
+function write_acl_token {
+  local -r token="$1"
+  local -r cluster_name="$2"
+  local -r token_name="${3:-bootstrap}"
+
+  local -r parameter_name=$(get_acl_token_parameter_name $cluster_name $token_name)
+  vault kv put $parameter_name token=$token
+}
